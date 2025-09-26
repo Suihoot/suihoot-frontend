@@ -27,8 +27,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} grid grid-rows-[20px_1fr_20px] antialiased`}>
-        <Providers>{children}</Providers>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <Providers>
+          <main className="grid grid-rows-[20px_1fr_20px] p-8 pb-2 sm:p-20">{children}</main>
+        </Providers>
       </body>
     </html>
   );

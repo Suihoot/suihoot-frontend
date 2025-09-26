@@ -1,3 +1,5 @@
+import JoinContainer from "@/containers/Join";
+
 export default function JoinPage() {
-  return <div>Join page</div>;
+  return <JoinContainer />;
 }

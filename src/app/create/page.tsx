@@ -1,3 +1,5 @@
+import CreateContainer from "@/containers/Create";
+
 export default function CreatePage() {
-  return <div>Create page</div>;
+  return <CreateContainer />;
 }
