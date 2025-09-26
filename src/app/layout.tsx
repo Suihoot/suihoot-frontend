@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Providers from "./providers";
+
 import "./globals.css";
+import "@mysten/dapp-kit/dist/index.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,10 +27,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
+      <body className={`${geistSans.variable} ${geistMono.variable} grid grid-rows-[20px_1fr_20px] antialiased`}>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
