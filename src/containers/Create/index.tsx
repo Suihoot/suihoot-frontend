@@ -5,6 +5,7 @@ import CreateButton from "./create-button";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import Questions from "./questions";
+import { Question } from "@/types";
 
 export default function CreateContainer() {
   const [createdRoomId, setCreatedRoomId] = useState<number | null>(null);

@@ -21,7 +21,7 @@ export default function useCreateSuihoot() {
     } catch (error) {
       console.error("Error creating todo item:", error);
     }
-  }, [suiClient, account]);
+  }, [account]);
 
   return { handleCreate };
 }

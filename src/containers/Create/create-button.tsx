@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import useCreateSuihoot from "@/hooks/useCreateSuihoot";
 
@@ -17,7 +17,7 @@ export default function CreateButton({ setCreatedRoomId }: CreateButtonProps) {
       setCreatedRoomId(result.roomId);
       console.log("Created room ID:", result.roomId);
     }
-  }, [handleCreate]);
+  }, [handleCreate, setCreatedRoomId]);
 
   return <Button onClick={onCreate}>Create Suihoot</Button>;
 }

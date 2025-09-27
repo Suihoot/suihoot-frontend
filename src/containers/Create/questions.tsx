@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Question } from "@/types";
 
 interface QuestionsProps {
   questions: Question[];
