@@ -25,7 +25,7 @@ export default function CreateContainer() {
       </div>
       <Button onClick={handleAddQuestion}>Add question</Button>
       {questions.length ? <Questions questions={questions} setQuestions={setQuestions} /> : null}
-      <CreateButton setCreatedRoomId={setCreatedRoomId} />
+      <CreateButton setCreatedRoomId={setCreatedRoomId} questions={questions} />
       {createdRoomId !== null && (
         <div className="flex gap-2">
           <div>
