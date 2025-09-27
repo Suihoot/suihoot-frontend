@@ -3,13 +3,27 @@
 import { useState } from "react";
 import CreateButton from "./create-button";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import Questions from "./questions";
 
 export default function CreateContainer() {
   const [createdRoomId, setCreatedRoomId] = useState<number | null>(null);
+  const [questions, setQuestions] = useState<Question[]>([]);
+
+  const handleAddQuestion = () => {
+    setQuestions([...questions, { text: "", options: ["", ""], correctOptionsIndex: [] }]);
+  };
 
   return (
     <div className="flex flex-col gap-4 items-start">
-      <div>Add a question</div>
+      <div className="flex">
+        <Link href="/" className="text-blue-500 underline mr-4">
+          Go Back
+        </Link>
+        <h1 className="text-4xl">Create a Suihoot</h1>
+      </div>
+      <Button onClick={handleAddQuestion}>Add question</Button>
+      {questions.length ? <Questions questions={questions} setQuestions={setQuestions} /> : null}
       <CreateButton setCreatedRoomId={setCreatedRoomId} />
       {createdRoomId !== null && (
         <div className="flex gap-2">

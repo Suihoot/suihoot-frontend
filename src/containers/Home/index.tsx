@@ -1,6 +1,7 @@
 "use client";
 
-import { ConnectButton, useCurrentAccount } from "@mysten/dapp-kit";
+import ConnectButton from "@/components/connect-button";
+import { useCurrentAccount } from "@mysten/dapp-kit";
 import Link from "next/link";
 
 export default function HomeContainer() {
