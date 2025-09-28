@@ -7,7 +7,7 @@ export default function ConnectButton() {
   const account = useCurrentAccount();
 
   return (
-    <div className="flex gap-2 items-center">
+    <div className="flex gap-2 items-center justify-center">
       <ConnectButtonDappkit />
       {account ? <CopyButton textToCopy={account.address} /> : null}
     </div>

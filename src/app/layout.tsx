@@ -4,6 +4,7 @@ import Providers from "./providers";
 
 import "./globals.css";
 import "@mysten/dapp-kit/dist/index.css";
+import Header from "@/components/header";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,7 +30,10 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <Providers>
-          <main className="grid grid-rows-[20px_1fr_20px] p-8 pb-2 sm:p-20">{children}</main>
+          <main className="min-h-screen bg-background grid-pattern">
+            <Header />
+            {children}
+          </main>
         </Providers>
       </body>
     </html>
