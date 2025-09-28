@@ -1,19 +1,20 @@
 import { useCurrentAccount, useSignAndExecuteTransaction, useSuiClient } from "@mysten/dapp-kit";
-import axios from "axios";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import useSealClient from "./useSealClient";
 import { fromHex } from "@mysten/sui/utils";
 import { Question } from "@/types";
 import { ROOM_MODULE } from "@/config/constants";
 import { WalrusFile } from "@mysten/walrus";
 import useWalrusClient from "./useWalrusClient";
+import { Transaction } from "@mysten/sui/transactions";
+import { parseTransactionBcs, parseTransactionEffectsBcs } from "@mysten/sui/experimental";
 
 interface useCreateSuihootProps {
   questions: Question[];
 }
 
 export default function useCreateSuihoot({ questions }: useCreateSuihootProps) {
-  const suiClient = useSuiClient();
+  const [loading, setLoading] = useState(false);
   const { sealClient } = useSealClient();
   const account = useCurrentAccount();
   const { walrusClient } = useWalrusClient();
@@ -23,80 +24,92 @@ export default function useCreateSuihoot({ questions }: useCreateSuihootProps) {
     if (!account || !sealClient || !walrusClient) return;
 
     try {
-      // turn questions into Uint8Array<ArrayBufferLike>
-      const questionsData = new TextEncoder().encode(JSON.stringify(questions));
-      console.log("Questions data:", questionsData);
-      const [file1] = await walrusClient.getFiles({ ids: ["lwkRL4pzTx3t6k490hhf14qt70H4eTDwl_Uo_sSP2eo"] });
-      console.log("okudum: ", await file1.json());
+      setLoading(true);
+      // 1) Encrypt + upload each question to Walrus, collect blob ids
+      const walrusIds: string[] = [];
 
-      const files = await Promise.all(
-        questions.map(async (q, i) => {
-          try {
-            const encodedQuestion = new TextEncoder().encode(JSON.stringify(q));
-            const { encryptedObject: encryptedBytes, key: backupKey } = await sealClient.encrypt({
-              threshold: 2,
-              packageId: ROOM_MODULE,
-              id: "0x7",
-              data: encodedQuestion,
-            });
-            console.log(1);
+      for (let i = 0; i < questions.length; i++) {
+        const q = questions[i];
 
-            const file1 = WalrusFile.from({
-              contents: encryptedBytes,
-              identifier: `question-${i}.json`,
-            });
-            console.log(2);
+        // Encrypt the JSON-encoded question with Seal
+        const encoded = new TextEncoder().encode(JSON.stringify(q));
+        const { encryptedObject: encryptedBytes /*, key: backupKey */ } = await sealClient.encrypt({
+          threshold: 2,
+          packageId: ROOM_MODULE, // your published package id (as string)
+          id: account.address, // policy id (per Seal docs)
+          data: encoded,
+        });
 
-            const flow = walrusClient.writeFilesFlow({
-              files: [file1],
-            });
-            console.log(3);
+        // Prepare a Walrus file with encrypted bytes
+        const file = WalrusFile.from({
+          contents: encryptedBytes,
+          identifier: `question-${i}.json`,
+        });
 
-            await flow.encode();
+        // Write flow: encode -> register -> upload -> certify
+        const flow = walrusClient.writeFilesFlow({ files: [file] });
+        await flow.encode();
 
-            const registerTx = flow.register({
-              epochs: 3,
-              owner: account.address,
-              deletable: true,
-            });
-            console.log(4);
+        const registerTx = flow.register({
+          epochs: 3,
+          owner: account.address,
+          deletable: true,
+        });
+        const { digest } = await signAndExecute({ transaction: registerTx });
 
-            const { digest } = await signAndExecute({ transaction: registerTx });
+        await flow.upload({ digest });
 
-            await flow.upload({ digest });
+        const certifyTx = flow.certify();
+        await signAndExecute({ transaction: certifyTx });
 
-            const certifyTx = flow.certify();
-            await signAndExecute({ transaction: certifyTx });
+        // IMPORTANT: listFiles() returns an array; grab the first item's id
+        const uploaded = await flow.listFiles();
+        if (!uploaded.length || !uploaded[0]?.id) {
+          throw new Error("Walrus returned no id for uploaded file");
+        }
+        walrusIds.push(uploaded[0].blobId); // this is the blob id string
+      }
 
-            const files = await flow.listFiles();
-            console.log("Uploaded files", files);
-            return files;
-          } catch (error) {
-            console.error("Error uploading question:", error);
-            throw error;
-          }
+      // 2) Build the PTB
+      const tx = new Transaction();
+
+      // 2a) Create EncryptedQuestion values ON-CHAIN using your helper
+      const encryptedQuestionArgs = walrusIds.map((idStr) =>
+        tx.moveCall({
+          target: `${ROOM_MODULE}::room::new_encrypted_question`,
+          arguments: [tx.pure.string(idStr)], // EncryptedQuestion { walrus_hash: String }
         })
       );
 
-      console.log("All uploaded files:", files);
+      // 2b) Make vector<EncryptedQuestion> from the returned args
+      const encryptedQuestionsVec = tx.makeMoveVec({
+        type: `${ROOM_MODULE}::room::EncryptedQuestion`,
+        elements: encryptedQuestionArgs, // <-- NOT strings; these are TransactionArguments
+      });
 
-      // save encryptedbytes on walrus
+      // --- OPTION A: use your convenience function (recommended) ---
+      tx.moveCall({
+        target: `${ROOM_MODULE}::room::create_room_and_cap`,
+        arguments: [
+          tx.pure.string("Suihoot Room"),
+          tx.pure.string("Room created via Suihoot"),
+          encryptedQuestionsVec,
+          tx.pure.u64(50),
+          tx.object("0x6"), // &Clock (system object). If your SDK has tx.object.clock(), you can use that too.
+        ],
+      });
 
-      // save walrus hash on sui blockchain
-      // {
-      //   const createResponse = await axios.post("/api/create-suihoot", {
-      //     recipient: account.address,
-      //   });
-      // }
+      // 3) Execute
+      const txOutput = await signAndExecute({ transaction: tx });
+      console.log("Transaction output:", txOutput);
 
-      return {
-        digest: "",
-        roomId: 0,
-      };
-    } catch (error) {
-      console.error("Error creating todo item:", error);
+      return { digest: txOutput.digest, roomId: 0, walrusBlobIds: walrusIds }; // TODO: extract and return actual roomId from effects
+    } catch (err) {
+      console.error("Error creating room:", err);
+    } finally {
+      setLoading(false);
     }
-  }, [account]);
+  }, [account, questions, sealClient, signAndExecute, walrusClient]);
 
-  return { handleCreate };
+  return { handleCreate, loading };
 }
